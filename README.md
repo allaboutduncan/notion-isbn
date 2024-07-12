@@ -3,7 +3,7 @@
 
  Duplicate the [Notion Books_Template](https://allaboutduncan.notion.site/3db8f153c5734fa883ea28030255a9df?v=c946f182c52d41a0bde3e96a237fb2a4&pvs=4)
 
- ![Library Example Image](/assets/images/library.png)
+ ![Library Example Image](/images/library.png)
 
 # Notion-ISBN
 
@@ -99,8 +99,4 @@ If you'd like to contribute to this project, please fork the repository and use 
 
 ## License
 
-This project is licensed under the GNU License. See the LICENSE file for details.
-
-```
-
-Feel free to customize the content as per your project's specific needs.
+This project is licensed under the GNU General Public License. See the LICENSE file for details.
