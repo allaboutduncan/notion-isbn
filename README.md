@@ -8,6 +8,13 @@
 
 This repository helps in managing ISBNs with Notion. Follow the instructions below to clone the repository and install it via Docker CLI or using `docker-compose`.
 
+## Requirements
+
+AWS S3 Bucket for Image storage
+[Notion API Key / Custome Integration](https://developers.notion.com/docs/create-a-notion-integration)
+[Google Books API Key](https://developers.google.com/books/docs/v1/getting_started)
+[Pushover](https://pushover.net/)
+
 ## Clone the Repository
 
 First, you need to clone this repository to your local machine.
@@ -32,27 +39,9 @@ For the app to run,  you must edit the 'docker-compose.yaml' fle and configure t
 
 Note: Currently, Pushover is required, but I'll publish an update in the future making it optional. I highly recommend using Pushover, as the app will send you error information if it encouters issues when adding books.
 
-## Installation via Docker CLI
-
-To build and run the Docker container, follow these steps:
-
-1. **Build the Docker Image:**
-
-   ```bash
-   docker build -t notion-isbn .
-   ```
-
-2. **Run the Docker Container:**
-
-   ```bash
-   docker run -d --name notion-isbn notion-isbn
-   ```
-
-   This will run the application in a Docker container.
-
 ## Installation via Docker Compose
 
-If you prefer to use `docker-compose`, follow these steps:
+Use `docker-compose` to install to load the variables in the yaml file needed to run the app:
 
 1. **Ensure you have Docker Compose installed:**
 
@@ -74,23 +63,18 @@ If you prefer to use `docker-compose`, follow these steps:
 
 ## Accessing the Application
 
-Once the application is running...
+Once the application is running, you should be able to view the logs or in the console see the status, which should read...
+'Next scan scheduled...'
 
-## Stopping the Application
+## Using the Application
 
-To stop the Docker container or services, you can use the following commands:
+Once the app is running, it will check your Notion database every 60 seconds for new books. To create a new book:
 
-- **Stopping the Docker Container:**
-
-  ```bash
-  docker stop notion-isbn
-  ```
-
-- **Stopping the Docker Compose Services:**
-
-  ```bash
-  docker-compose down
-  ```
+1. Duplicate the [Notion Books_Template](https://allaboutduncan.notion.site/3db8f153c5734fa883ea28030255a9df?v=c946f182c52d41a0bde3e96a237fb2a4&pvs=4)
+2. Create a new database entry / book
+3. Enter "New Phsyical Book" for the book title
+4. Enter the 10-digit or 13-digit ISBN
+5. Wait for the data to be popluated (when the process runs every 60-seconds)
 
 ## Contributing
 
