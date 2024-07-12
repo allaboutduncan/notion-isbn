@@ -10,10 +10,10 @@ This repository helps in managing ISBNs with Notion. Follow the instructions bel
 
 ## Requirements
 
-AWS S3 Bucket for Image storage
-[Notion API Key / Custome Integration](https://developers.notion.com/docs/create-a-notion-integration)
-[Google Books API Key](https://developers.google.com/books/docs/v1/getting_started)
-[Pushover](https://pushover.net/)
+* AWS S3 Bucket for Image storage
+* [Notion API Key / Custome Integration](https://developers.notion.com/docs/create-a-notion-integration)
+* [Google Books API Key](https://developers.google.com/books/docs/v1/getting_started)
+* [Pushover](https://pushover.net/)
 
 ## Clone the Repository
 
