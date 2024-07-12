@@ -18,5 +18,6 @@ services:
             - NOTION_TOKEN=notion_secret
             - NOTION_DATABASE_ID=notion-database-id
             - GoogleAPIKey=Google-Books-API-Key
+            - USE_PUSHOVER=yes/no
             - PO_TOKEN=pushover-app-API-key
             - PO_USER=pushover_user_key
