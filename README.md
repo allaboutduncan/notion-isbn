@@ -1,11 +1,10 @@
-# notion-isbn
+# Notion-ISBN
+
  Python App that Gets ISBN numbers from Notion and populates book data using the Google Books API
 
  Duplicate the [Notion Books_Template](https://allaboutduncan.notion.site/3db8f153c5734fa883ea28030255a9df?v=c946f182c52d41a0bde3e96a237fb2a4&pvs=4)
 
  ![Library Example Image](/images/library.png)
-
-# Notion-ISBN
 
 This repository helps in managing ISBNs with Notion. Follow the instructions below to clone the repository and install it via Docker CLI or using `docker-compose`.
 
