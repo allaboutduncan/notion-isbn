@@ -39,7 +39,7 @@ For the app to run,  you must edit the 'docker-compose.yaml' fle and configure t
 
 Note: Currently, Pushover is required, but I'll publish an update in the future making it optional. I highly recommend using Pushover, as the app will send you error information if it encouters issues when adding books.
 
-## Installation via Docker Compose
+## Installation via Docker Compose (CLI)
 
 Use `docker-compose` to install to load the variables in the yaml file needed to run the app:
 
@@ -60,6 +60,34 @@ Use `docker-compose` to install to load the variables in the yaml file needed to
    ```
 
    This command will build and start the services defined in the `docker-compose.yaml` file in detached mode.
+
+## Installation via Docker Compose (Portainer)
+
+Copy the following and edit the environment variables
+
+    version: '3.9'
+    services:
+        notion-books:
+            image: allaboutduncan/notion-isbn:latest
+            container_name: notion-books
+            logging:
+                options:
+                    max-size: 1g
+            restart: always
+            volumes:
+                - '/var/run/docker.sock:/tmp/docker.sock:ro'
+            ports:
+                - '3331:3331'
+            environment:
+                - AWS_ACCESS_KEY_ID=ENTER-YOUR-ACCESS-KEY-HERE
+                - AWS_SECRET_ACCESS_KEY=ENTER-YOUR-SECRET-KEY-HERE
+                - AWS_BUCKET=bucket-name
+                - NOTION_TOKEN=notion_secret
+                - NOTION_DATABASE_ID=notion-database-id
+                - GoogleAPIKey=Google-Books-API-Key
+                - USE_PUSHOVER=yes/no
+                - PO_TOKEN=pushover-app-API-key
+                - PO_USER=pushover_user_key
 
 ## Accessing the Application
 
