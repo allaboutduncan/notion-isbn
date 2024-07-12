@@ -1,5 +1,5 @@
 import requests
-from datetime import datetime, timezone
+from datetime import datetime
 from dateutil import parser
 import time
 import schedule
@@ -15,343 +15,223 @@ from pushover import Pushover
 import json
 import textwrap
 
+# Constants and Configuration
 SERVICE_NAME = "Notion Books"
 NOTION_TOKEN = os.getenv("NOTION_TOKEN")
 DATABASE_ID = os.getenv("NOTION_DATABASE_ID")
-NOTION_headers = {
-    "Authorization": "Bearer " + NOTION_TOKEN,
+USE_PUSHOVER = os.getenv("USE_PUSHOVER", 'no')  # Default to 'no' if USE_PUSHOVER is not set
+
+BUCKET = os.getenv("AWS_BUCKET")
+GOOGLE_API_KEY = os.getenv("GoogleAPIKey")
+
+if USE_PUSHOVER.lower() == 'yes':
+    PO_USER = os.getenv("PO_USER")
+    PO_TOKEN = os.getenv("PO_TOKEN")
+    po = Pushover(PO_TOKEN)
+    po.user(PO_USER)
+
+NOTION_HEADERS = {
+    "Authorization": f"Bearer {NOTION_TOKEN}",
     "Content-Type": "application/json",
     "Notion-Version": "2022-06-28",
 }
-PO_USER = os.getenv("PO_USER")
-PO_TOKEN = os.getenv("PO_TOKEN")
-po = Pushover(PO_TOKEN)
-po.user(PO_USER)
 
-BUCKET = os.getenv("AWS_BUCKET")
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s', filename='debug.log', encoding='utf-8')
 
-GoogleAPIKey = os.getenv("GoogleAPIKey")
+def send_push(subject, message):
+    if PO_USE.lower() == 'yes':
+        msg = po.msg(message)
+        msg.set("title", subject)
+        po.send(msg)
 
-def send_push(subject,message):
-  msg = po.msg(message)
-  msg.set("title", subject)
-  po.send(msg)
-
-def status():
-    current_time = str(datetime.now())
-    subject = SERVICE_NAME + " is online"
-    message = SERVICE_NAME + " is online and running at " + current_time
-    send_push(subject,message)
 
 def remove_html(input_string):
     soup = BeautifulSoup(input_string, "html.parser")
     return soup.get_text()
 
-def upload_file(file_name,object_name,bucket_folder):
-    # If S3 object_name was not specified, use file_name
-    if object_name is None:
-        object_name = os.path.basename(file_name)
-    # Upload the file
+
+def upload_file(file_name, object_name, bucket_folder):
     s3_client = boto3.client('s3')
-    object_name = bucket_folder+object_name
-    #print("Print: "+object_name)
+    object_name = f"{bucket_folder}{object_name or os.path.basename(file_name)}"
+    
     try:
-        response = s3_client.upload_file(file_name, BUCKET, object_name)
-        #print(response)
+        s3_client.upload_file(file_name, BUCKET, object_name)
     except ClientError as e:
         logging.error(e)
-        #print.error(e)
         return False
     return True
 
+
 def get_book(isbn):
     isbn = str(isbn)
-    base_url = 'https://www.googleapis.com/books/v1/volumes?country=US&q=isbn:'+isbn +'&keyes&key=' + GoogleAPIKey
-    #print(base_url)
+    base_url = f"https://www.googleapis.com/books/v1/volumes?country=US&q=isbn:{isbn}&key={GOOGLE_API_KEY}"
+    
     try:
         response = requests.get(base_url)
         response.raise_for_status()
         book_data = response.json()
-        #print("Getting book data from Google...")
-        # print(book_data)
+        
         if book_data['totalItems'] > 0:
-          book_data = book_data['items'][0]['volumeInfo']
-          print("Found "+book_data['title'])
+            book_data = book_data['items'][0]['volumeInfo']
+            logging.info(f"Found {book_data['title']}")
+            return book_data
         else:
-            print("Book not found")
-            subject = "No data found for ISBN: " + isbn
-            message = "Check for another ISBN. No data  was found for ISBN: " + isbn
-            send_push(subject,message)
-            print("Push Sent")
-        return book_data
+            logging.info("Book not found")
+            logging.warning('No data found for the following ISBN %s. Check and see if it is correct', isbn)
+            send_push(f"No data found for ISBN: {isbn}", f"Check for another ISBN. No data was found for ISBN: {isbn}")
+            return None
     except requests.exceptions.RequestException as e:
-        print(f"Error: {e}")
-        subject = "Error attempting to find book "+book_data['title']
-        message = e
-        send_push(subject,message)
+        logging.error(f"Error: {e}")
+        send_push(f"Error attempting to find book {isbn}", str(e))
         return None
 
+
 def get_pages(num_pages=None):
-    #print("Starting to get pages...")
     url = f"https://api.notion.com/v1/databases/{DATABASE_ID}/query"
-    #print(url)
-    get_all = num_pages is None
-    page_size = 100 if get_all else num_pages
-    payload = {"page_size": page_size}
-    with requests.post(url, json=payload, headers=NOTION_headers) as response:
-        data = response.json()
-    results = data["results"]
-    while data["has_more"] and get_all:
-        payload = {"page_size": page_size, "start_cursor": data["next_cursor"]}
-        url = f"https://api.notion.com/v1/databases/{DATABASE_ID}/query"
-        response = requests.post(url, json=payload, headers=NOTION_headers)
-        # print(response.text)
-        # print(response.json)
+    payload = {"page_size": 100 if num_pages is None else num_pages}
+    results = []
+    
+    with requests.post(url, json=payload, headers=NOTION_HEADERS) as response:
         data = response.json()
         results.extend(data["results"])
+    
+        while data.get("has_more") and num_pages is None:
+            payload["start_cursor"] = data["next_cursor"]
+            with requests.post(url, json=payload, headers=NOTION_HEADERS) as response:
+                data = response.json()
+                results.extend(data["results"])
+    
     return results
 
+
 def read_pages():
-    #print("Start reading pages from API...")
     pages = get_pages()
-    #print("Starting scan for new books...")
+    
     for count, page in enumerate(pages, start=1):
         try:
             page_id = page["id"]
             props = page["properties"]
             isbn = props["ISBN"]["rich_text"][0]["plain_text"]
             title = props["Name"]["title"][0]["plain_text"]
-            if "New Physical Book" in title and isbn is not None:
-                print("We found a new book")
-                #print(f"{count}. {title}, Page ID: {page_id}, ISBN: {isbn}")
+            
+            if "New Physical Book" in title and isbn:
+                logging.info("Found a new book")
                 book_data = get_book(isbn)
-                update_notion(book_data,page_id,isbn)
+                
+                if book_data:
+                    update_notion(book_data, page_id, isbn)
         except KeyError as e:
-            print(f"Error reading page {count}: {e}")
-            subject = "Error reading Notion book page"
-            message = count,e,isbn
-            send_push(subject,message)
+            logging.error(f"Error reading page {count}: {e}")
+            send_push("Error reading Notion book page", f"Page {count}: {e}")
 
-def update_page(page_id: str, data: dict):
-    # print("Start Update_Page function")
+
+def update_page(page_id, data):
     url = f"https://api.notion.com/v1/pages/{page_id}"
-    payload = data
-    res = requests.patch(url, json=payload, headers=NOTION_headers)
+    
+    res = requests.patch(url, json=data, headers=NOTION_HEADERS)
+    
     if res.status_code == 200:
-        print('Book details updated successfully!')
+        logging.info('Book details updated successfully!')
     else:
-        print(f'Notion update request failed with status code: {res.status_code}')
-
-        json_data = json.loads(res.content.decode('utf-8'))
-        # Print key-value pairs
+        logging.error(f'Notion update request failed with status code: {res.status_code}')
+        json_data = res.json()
         for key, value in json_data.items():
-          print(f'{key}: {value}')
-          subject = json_data['status'],json_data['code']
-          message = json_data['message']
-          send_push(subject,message)
-    return res
+            logging.error(f'{key}: {value}')
+        send_push(f"Error {json_data['status']}: {json_data['code']}", json_data['message'])
 
-def make_banner(img_url,page_id):
-   img_name = str(page_id+".jpg")
-   urllib.request.urlretrieve(img_url,img_name) 
-   
-   img = Image.open(img_name)
-   img = img.convert("RGB")
-   width, height = img.size
 
-   new_height = 540
-   new_width  = new_height * width / height
+def make_banner(img_url, page_id):
+    img_name = f"{page_id}.jpg"
+    urllib.request.urlretrieve(img_url, img_name)
+    
+    img = Image.open(img_name).convert("RGB")
+    new_height = 540
+    new_width = int(new_height * img.width / img.height)
+    img_poster = img.resize((new_width, new_height))
+    upload_file(img_name, img_name, "book_covers/")
+    
+    cropped_img = img.crop((5, img.height // 3, img.width, 2 * img.height // 3)).resize((1500, 600)).filter(ImageFilter.BoxBlur(30))
+    cropped_img.paste(img_poster, (573, 30))
+    cropped_img.save(img_name)
+    
+    upload_file(img_name, img_name, "book_banners/")
+    
+    return cropped_img
 
-   postersize = (int(new_width), new_height)
-   img_poster = img.resize(postersize)
-   bucket_folder = "book_covers/"
-   #img_poster.show()
-   #add code to upload poster (cover)
-   upload_file(img_name,img_name,bucket_folder)
-
-   left = 5
-   top = height / 3
-   right = width
-   bottom = 2 * height / 3
-   
-   # Cropped image of above dimension
-   img = img.crop((left, top, right, bottom))
-   newsize = (1500, 600)
-   img_banner = img.resize(newsize)
-   img_banner = img_banner.filter(ImageFilter.BoxBlur(30))
-   #img_banner.show()
-
-   background = img_banner
-   foreground = img_poster
-   background.paste(foreground, (573,30)) 
-   background.save(img_name)
-   bucket_folder = "book_banners/"
-   upload_file(img_name,img_name,bucket_folder)
-   #background.show()
-   return background
 
 def get_opencover(isbn):
-    # API endpoint
     url = f"https://openlibrary.org/api/books?bibkeys=ISBN:{isbn}&jscmd=data&format=json"
-
-    # Making a GET request to the API
+    
     response = requests.get(url)
-
-    # Checking if the request was successful
+    
     if response.status_code == 200:
-        # Parsing the JSON response
-        data = response.json()
-        # Extracting the 'identifiers.openlibrary' value
-        book_info = data.get(f"ISBN:{isbn}", {})
-        identifiers = book_info.get("identifiers", {})
-        openlibrary_ids = identifiers.get("openlibrary", [])
-        # Returning the 'identifiers.openlibrary' value as plain text
+        book_info = response.json().get(f"ISBN:{isbn}", {})
+        openlibrary_ids = book_info.get("identifiers", {}).get("openlibrary", [])
+        
         if openlibrary_ids:
-            olid = openlibrary_ids[0]
-            cover_url = "https://covers.openlibrary.org/b/olid/"+olid+"-L.jpg"
-            return cover_url
+            return f"https://covers.openlibrary.org/b/olid/{openlibrary_ids[0]}-L.jpg"
         else:
             return "No openlibrary ID found."
     else:
         return f"Failed to retrieve data. Status code: {response.status_code}"
 
-def update_notion(book_data,page_id,isbn):
-      print("Start Book Update")
-      
-      try:
-          book_data['subtitle']
-          title = book_data['title'] + ": " + book_data['subtitle']
-          title = re.sub(r'\([^)]*\)', '', title)
-          title = title[:100]
-      except KeyError:
-          title = book_data['title']
-          title = re.sub(r'\([^)]*\)', '', title)
-      cover = get_opencover(isbn)
-      img_name = str(page_id+".jpg")
-      try:
-          urllib.request.urlretrieve(cover,img_name)
-      except Exception as e:
-            print(e)
-            cover = "https://upload.wikimedia.org/wikipedia/commons/c/ca/1x1.png"
-            img_name = str(page_id+".jpg")
-            #print(img_name)
-            urllib.request.urlretrieve(cover,img_name)
-            img = Image.open(img_name)
-            pass
-      else:
-            img = Image.open(img_name)
-      width = img.size
-      #print(width)
-      if width < (50,50):
-          print("That image is too small")
-          cover = "https://pipedream-api.s3.us-east-2.amazonaws.com/icons/noCover.jpeg"
-          banner = "https://pipedream-api.s3.us-east-2.amazonaws.com/icons/noCover.jpeg"
-      else:
-          make_banner(cover,page_id)
-          banner = f"https://{BUCKET}.s3.us-east-2.amazonaws.com/book_banners/"+page_id+".jpg"
-          cover = f"https://{BUCKET}.s3.us-east-2.amazonaws.com/book_covers/"+page_id+".jpg"
-      publishedDate = book_data['publishedDate']
-      try:
-          authors = book_data['authors']
-          authors = book_data['authors'][0]
-      except KeyError:
-          authors = "Anthology"
-      date_obj = parser.parse(publishedDate)
-      year = date_obj.year
-      pageCount = book_data['pageCount']
-      try:
-        description = book_data['description']
-        description = remove_html(book_data['description'])
-        description = description.replace("\"", "").replace("\n", "")
-        description = textwrap.shorten(description, width=2000, placeholder="...")
-      except KeyError:
-          description = title + " ("+str(year)+") by " + authors
-      try:
-          publisher = book_data['publisher']
-          publisher = publisher.replace(",","").replace(";","")
-      except KeyError:
-          publisher = "No Publisher Found"
-      #print("Build Notion Update")
-      update_data = {
-      "cover": {
-        "external": { "url": banner }
-      },
-      "properties": {
-        "Author": {
-          "type": "select",
-          "select": { "name": authors }
-        },
-        "Publisher": {
-          "type": "select",
-          "select": { "name": publisher }
-        },
-        "ISBN": {
-            "type": "rich_text",
-            "rich_text": [
-                { "type": "text",
-                    "text": { "content": isbn }
-                }
-            ]
-        },  
-        "Summary": {
-          "type": "rich_text",
-          "rich_text": [
-            {
-              "type": "text",
-              "text": { "content": description }
-            }
-          ]
-        },
-        "Type": {
-          "type": "select",
-          "select": { "name": "Physical" }
-        },
-        "Cover": {
-          "type": "files",
-          "files": [
-            {
-              "name": title,
-              "type": "external",
-              "external": { "url": cover }
-            }
-          ]
-        },
-        "Year": { 
-          "type": "number",
-          "number": year
-        },
-        "Pages": {
-          "type": "number",
-          "number": pageCount
-        },
-        "Name": {
-          "type": "title",
-          "title": [
-            {
-              "type": "text",
-              "text": {
-                "content": title
-              }
-            }
-          ]
-        }
-      }
-  }
 
-      # print("Now Update the page in Notion")
-      update_page(page_id,update_data)
-      #print(json.dumps(update_data))
-      subject = "New book found!!!"
-      message = "Adding "+title+" to your book collection"
-      send_push(subject,message)
-      #print("Remove the temp image")
-      img.close()
-      os.remove(page_id+".jpg")
+def update_notion(book_data, page_id, isbn):
+    title = book_data.get('title', '')
+    
+    if 'subtitle' in book_data:
+        title += f": {book_data['subtitle']}"
+    title = re.sub(r'\([^)]*\)', '', title)[:100]
+    
+    cover = get_opencover(isbn) or "https://upload.wikimedia.org/wikipedia/commons/c/ca/1x1.png"
+    img_name = f"{page_id}.jpg"
+    
+    try:
+        urllib.request.urlretrieve(cover, img_name)
+        img = Image.open(img_name)
+    except Exception:
+        cover = "https://upload.wikimedia.org/wikipedia/commons/c/ca/1x1.png"
+        urllib.request.urlretrieve(cover, img_name)
+        img = Image.open(img_name)
+    
+    if img.size < (50, 50):
+        cover = banner = "https://pipedream-api.s3.us-east-2.amazonaws.com/icons/noCover.jpeg"
+    else:
+        make_banner(cover, page_id)
+        banner = f"https://{BUCKET}.s3.us-east-2.amazonaws.com/book_banners/{page_id}.jpg"
+        cover = f"https://{BUCKET}.s3.us-east-2.amazonaws.com/book_covers/{page_id}.jpg"
+    
+    authors = ", ".join(book_data.get('authors', ["Anthology"]))
+    published_date = book_data.get('publishedDate', '')
+    description = remove_html(book_data.get('description', ''))
+    description = textwrap.shorten(description.replace('"', '').replace('\n', ''), width=2000, placeholder="...")
+    publisher = book_data.get('publisher', 'No Publisher Found').replace(",", "").replace(";", "")
+    year = parser.parse(published_date).year if published_date else None
+    page_count = book_data.get('pageCount', 0)
+    
+    update_data = {
+        "cover": {"external": {"url": banner}},
+        "properties": {
+            "Author": {"select": {"name": authors}},
+            "Publisher": {"select": {"name": publisher}},
+            "ISBN": {"rich_text": [{"text": {"content": isbn}}]},
+            "Summary": {"rich_text": [{"text": {"content": description}}]},
+            "Type": {"select": {"name": "Physical"}},
+            "Cover": {"files": [{"name": title, "external": {"url": cover}}]},
+            "Year": {"number": year},
+            "Pages": {"number": page_count},
+            "Name": {"title": [{"text": {"content": title}}]},
+        },
+    }
+    
+    update_page(page_id, update_data)
+    send_push("New book found!!!", f"Adding {title} to your book collection")
+    os.remove(img_name)
 
-# Uncomment to run on app start
-# read_pages()
+
+read_pages()
 schedule.every(60).seconds.do(read_pages)
-print("Next scan scheduled...")
+logging.info("Next scan scheduled...")
 
 while True:
     schedule.run_pending()
