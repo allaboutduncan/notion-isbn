@@ -89,14 +89,12 @@ Copy the following and edit the environment variables
                 - PO_TOKEN=pushover-app-API-key
                 - PO_USER=pushover_user_key
 
-## Accessing the Application
+## Using the Application
 
 Once the application is running, you should be able to view the logs or in the console see the status, which should read...
 'Next scan scheduled...'
 
-## Using the Application
-
-Once the app is running, it will check your Notion database every 60 seconds for new books. To create a new book:
+The app will check your Notion database every 60 seconds for new books. To create a new book:
 
 1. Duplicate the [Notion Books_Template](https://allaboutduncan.notion.site/3db8f153c5734fa883ea28030255a9df?v=c946f182c52d41a0bde3e96a237fb2a4&pvs=4)
 2. Create a new database entry / book
@@ -107,6 +105,13 @@ Once the app is running, it will check your Notion database every 60 seconds for
 ## Contributing
 
 If you'd like to contribute to this project, please fork the repository and use a feature branch. Pull requests are warmly welcome.
+
+## Notes
+
+This is my first public project and I've been working/running this personally for 9 months. It's by no means perfect, but I'm interested to get feedback, requests, etc at this point and share it in a more usable way.
+
+If you enjoyed this, want to say thanks or want to encourage updates and enhancements, feel free to [!["Buy Me A Coffee"](https://www.buymeacoffee.com/assets/img/custom_images/orange_img.png)](https://www.buymeacoffee.com/allaboutduncan)
+
 
 ## License
 
