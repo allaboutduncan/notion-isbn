@@ -26,7 +26,7 @@ cd notion-isbn
 
 ## Edit the Docker Compose File
 
-For the app to run,  you must edit the 'docker-compose.yaml' fle and configure the following environment variables with the appropriate values.
+For the app to run,  you must edit the `docker-compose.yaml` fle and configure the following environment variables with the appropriate values.
 
             - AWS_ACCESS_KEY_ID=ENTER-YOUR-ACCESS-KEY-HERE
             - AWS_SECRET_ACCESS_KEY=ENTER-YOUR-SECRET-KEY-HERE
