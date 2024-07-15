@@ -20,6 +20,8 @@ If you'd like to receive notifications when new books are processed or error det
 In the `docker-compose.yaml` file - configure `USE_PUSHOVER=yes` and enter your Token and User Keys in the areas provided. 
 * [Pushover](https://pushover.net/)
 
+# Installation
+
 ## Clone the Repository
 
 First, you need to clone this repository to your local machine.
