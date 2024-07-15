@@ -39,7 +39,7 @@ NOTION_HEADERS = {
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s', filename='debug.log', encoding='utf-8')
 
 def send_push(subject, message):
-    if PO_USE.lower() == 'yes':
+    if USE_PUSHOVER.lower() == 'yes':
         msg = po.msg(message)
         msg.set("title", subject)
         po.send(msg)
@@ -88,7 +88,8 @@ def get_book(isbn):
 
 def get_pages(num_pages=None):
     url = f"https://api.notion.com/v1/databases/{DATABASE_ID}/query"
-    payload = {"page_size": 100 if num_pages is None else num_pages}
+    #payload = {"page_size": 100 if num_pages is None else num_pages}
+    payload = {"filter": {"property": "Name","title": {"contains": "New Book"}},"page_size": 100 if num_pages is None else num_pages}
     results = []
     
     with requests.post(url, json=payload, headers=NOTION_HEADERS) as response:
@@ -114,7 +115,7 @@ def read_pages():
             isbn = props["ISBN"]["rich_text"][0]["plain_text"]
             title = props["Name"]["title"][0]["plain_text"]
             
-            if "New Physical Book" in title and isbn:
+            if "New Book" in title and isbn:
                 logging.info("Found a new book")
                 book_data = get_book(isbn)
                 
