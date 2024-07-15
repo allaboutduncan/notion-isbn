@@ -106,7 +106,7 @@ The app will check your Notion database every 60 seconds for new books. To creat
 
 1. Duplicate the [Notion Books_Template](https://allaboutduncan.notion.site/3db8f153c5734fa883ea28030255a9df?v=c946f182c52d41a0bde3e96a237fb2a4&pvs=4)
 2. Create a new database entry / book
-3. Enter "New Phsyical Book" for the book title
+3. Enter "New Book" for the book title
 4. Enter the 10-digit or 13-digit ISBN
 5. Wait for the data to be popluated (when the process runs every 60-seconds)
 
