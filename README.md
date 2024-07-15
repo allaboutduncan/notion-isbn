@@ -13,6 +13,11 @@ This repository helps in managing ISBNs with Notion. Follow the instructions bel
 * AWS S3 Bucket for Image storage
 * [Notion API Key / Custome Integration](https://developers.notion.com/docs/create-a-notion-integration)
 * [Google Books API Key](https://developers.google.com/books/docs/v1/getting_started)
+
+## Add-Ons
+If you'd like to receive notifications when new books are processed or error details pushed to your mobile device, Pushover is supported.
+
+In the `docker-compose.yaml` file - configure `USE_PUSHOVER=yes` and enter your Token and User Keys in the areas provided. 
 * [Pushover](https://pushover.net/)
 
 ## Clone the Repository
@@ -34,6 +39,7 @@ For the app to run,  you must edit the `docker-compose.yaml` fle and configure t
             - NOTION_TOKEN=notion_secret
             - NOTION_DATABASE_ID=notion-database-id
             - GoogleAPIKey=Google-Books-API-Key
+            - USE_PUSHOVER=yes/no
             - PO_TOKEN=pushover-app-API-key
             - PO_USER=pushover_user_key
 
