@@ -36,7 +36,7 @@ NOTION_HEADERS = {
     "Notion-Version": "2022-06-28",
 }
 
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s', filename='debug.log', encoding='utf-8')
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s', handlers=[logging.StreamHandler()])
 
 def send_push(subject, message):
     if USE_PUSHOVER.lower() == 'yes':
