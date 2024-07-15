@@ -90,6 +90,7 @@ def get_pages(num_pages=None):
     url = f"https://api.notion.com/v1/databases/{DATABASE_ID}/query"
     #payload = {"page_size": 100 if num_pages is None else num_pages}
     payload = {"filter": {"property": "Name","title": {"contains": "New Book"}},"page_size": 100 if num_pages is None else num_pages}
+    logging.info("Looking for New Books...")
     results = []
     
     with requests.post(url, json=payload, headers=NOTION_HEADERS) as response:
