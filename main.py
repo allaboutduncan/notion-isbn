@@ -203,7 +203,7 @@ def update_notion(book_data, page_id, isbn):
         banner = f"https://{BUCKET}.s3.us-east-2.amazonaws.com/book_banners/{page_id}.jpg"
         cover = f"https://{BUCKET}.s3.us-east-2.amazonaws.com/book_covers/{page_id}.jpg"
     
-    authors = ", ".join(book_data.get('authors', ["Anthology"]))
+    authors = " and ".join(book_data.get('authors', ["Anthology"]))
     published_date = book_data.get('publishedDate', '')
     description = remove_html(book_data.get('description', ''))
     description = textwrap.shorten(description.replace('"', '').replace('\n', ''), width=2000, placeholder="...")
