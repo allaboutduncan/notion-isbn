@@ -22,7 +22,7 @@ In the `docker-compose.yaml` file - configure `USE_PUSHOVER=yes` and enter your 
 * [Pushover](https://pushover.net/)
 
 ### AWS S3 Bucket for Banner Style Page Covers
- ![Example Banner Image](/images/banner.png)
+ ![Example Banner Image](/images/banner.jpg)
 
 If you want the app to generate banner style Notion Page Covers like the image above, you'll need to have an AWS S3 bucket. This will allow the app to upload and store the images in a location where Notion can import them.
 
