@@ -12,6 +12,7 @@ services:
         ports:
             - '3331:3331'
         environment:
+            - USE_AWS=yes/no
             - AWS_ACCESS_KEY_ID=ENTER-YOUR-ACCESS-KEY-HERE
             - AWS_SECRET_ACCESS_KEY=ENTER-YOUR-SECRET-KEY-HERE
             - AWS_BUCKET=bucket-name

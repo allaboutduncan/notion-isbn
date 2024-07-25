@@ -10,15 +10,23 @@ This repository helps in managing ISBNs with Notion. Follow the instructions bel
 
 ## Requirements
 
-* AWS S3 Bucket for Image storage
 * [Notion API Key / Custome Integration](https://developers.notion.com/docs/create-a-notion-integration)
 * [Google Books API Key](https://developers.google.com/books/docs/v1/getting_started)
 
 ## Add-Ons
+
+### Pushover
 If you'd like to receive notifications when new books are processed or error details pushed to your mobile device, Pushover is supported.
 
-In the `docker-compose.yaml` file - configure `USE_PUSHOVER=yes` and enter your Token and User Keys in the areas provided. 
+In the `docker-compose.yaml` file - configure `USE_PUSHOVER=yes` and enter your Token and User Keys in the lines provided. 
 * [Pushover](https://pushover.net/)
+
+### AWS S3 Bucket for Banner Style Page Covers
+ ![Example Banner Image](/images/banner.png)
+
+If you want the app to generate banner style Notion Page Covers like the image above, you'll need to have an AWS S3 bucket. This will allow the app to upload and store the images in a location where Notion can import them.
+
+In the `docker-compose.yaml` file - configure `USE_AWS=yes` and enter your Access and Secret Keys in the lines provided. 
 
 # Installation
 
@@ -35,6 +43,7 @@ cd notion-isbn
 
 For the app to run,  you must edit the `docker-compose.yaml` fle and configure the following environment variables with the appropriate values.
 
+            - USE_AWS=yes/no            
             - AWS_ACCESS_KEY_ID=ENTER-YOUR-ACCESS-KEY-HERE
             - AWS_SECRET_ACCESS_KEY=ENTER-YOUR-SECRET-KEY-HERE
             - AWS_BUCKET=bucket-name
