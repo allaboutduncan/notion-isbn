@@ -185,6 +185,31 @@ def make_banner(img_url, page_id):
     return cropped_img
 
 
+def get_book_cover_from_isbndb(isbn):
+    # Send a request to the ISBNdb book page
+    headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"}
+    book_url = (f"https://isbndb.com/book/{isbn}")
+    response = requests.get(book_url, headers=headers)
+    
+    # Parse the page content
+    soup = BeautifulSoup(response.content, 'html.parser')
+    
+    # Find the div with the class "artwork" and then locate the object tag inside it
+    artwork_div = soup.find("div", {"class": "artwork"})
+    
+    if artwork_div:
+        # Find the object tag within the div and get the data attribute
+        object_tag = artwork_div.find("object")
+        if object_tag and "data" in object_tag.attrs:
+            image_url = object_tag['data']
+            print(f"Cover image URL: {image_url}")
+            return image_url
+        else:
+            print("Object tag or 'data' attribute not found.")
+    else:
+        print("Div with class 'artwork' not found.")
+
+
 def get_opencover(isbn):
     url = (
         f"https://openlibrary.org/api/books?bibkeys=ISBN:{isbn}&jscmd=data&format=json"
@@ -212,7 +237,7 @@ def update_notion(book_data, page_id, isbn):
     title = re.sub(r"\([^)]*\)", "", title)[:100]
 
     cover = (
-        get_opencover(isbn)
+        get_book_cover_from_isbndb(isbn)
         or "https://upload.wikimedia.org/wikipedia/commons/c/ca/1x1.png"
     )
     print(cover)
