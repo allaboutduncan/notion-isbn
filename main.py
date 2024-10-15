@@ -13,12 +13,14 @@ import os
 from bs4 import BeautifulSoup
 from pushover import Pushover
 import textwrap
+from pushbullet import Pushbullet
 
 # Constants and Configuration
 SERVICE_NAME = "Notion Books"
 NOTION_TOKEN = os.getenv("NOTION_TOKEN")
 DATABASE_ID = os.getenv("NOTION_DATABASE_ID")
 USE_PUSHOVER = os.getenv("USE_PUSHOVER", "no")  # Default to 'no' if USE_PUSHOVER is not set
+USE_PUSHBULLET = os.getenv("USE_PUSHBULLET", "no")  # Default to 'no' if USE_PUSHBULLET is not set
 USE_AWS = os.getenv("USE_AWS", "no")  # Default to 'no' if USE_AWS is not set
 
 GOOGLE_API_KEY = os.getenv("GoogleAPIKey")
@@ -28,6 +30,12 @@ if USE_PUSHOVER.lower() == "yes":
     PO_TOKEN = os.getenv("PO_TOKEN")
     po = Pushover(PO_TOKEN)
     po.user(PO_USER)
+
+
+if USE_PUSHBULLET.lower() == "yes":
+    PB_TOKEN = os.getenv("PB_TOKEN")
+    pb = Pushbullet(PB_TOKEN)
+
 
 if USE_AWS.lower() == "yes":
     BUCKET = os.getenv("AWS_BUCKET")
@@ -50,7 +58,8 @@ def send_push(subject, message):
         msg = po.msg(message)
         msg.set("title", subject)
         po.send(msg)
-
+    elif USE_PUSHBULLET.lower() == "yes":
+        push = pb.push_note(subject,message)
 
 def remove_html(input_string):
     soup = BeautifulSoup(input_string, "html.parser")

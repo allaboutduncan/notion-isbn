@@ -27,7 +27,7 @@ RUN apt-get update && apt-get install -y git
 RUN pip3 install --upgrade pip --user
 RUN pip3 install --upgrade awscli
 RUN pip3 install git+https://github.com/Wyattjoh/pushover
-RUN pip3 install ndg-httpsclient pyopenssl pyasn1 urllib3
+RUN pip3 install ndg-httpsclient pyopenssl pyasn1 urllib3 pushbullet
 RUN pip3 install requests datetime schedule boto3 pillow beautifulsoup4 --user
 # Copy the source code into the container.
 COPY . .

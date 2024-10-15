@@ -15,6 +15,12 @@ This repository helps in managing ISBNs with Notion. Follow the instructions bel
 
 ## Add-Ons
 
+### Pushbullet
+If you'd like to receive notifications when new books are processed or error details pushed to your mobile device, Pushbullet is supported.
+
+In the `docker-compose.yaml` file - configure `USE_PUSHBULLET=yes` and enter your Token in the line provided. 
+* [Pushbullet](https://www.pushbullet.com/)
+
 ### Pushover
 If you'd like to receive notifications when new books are processed or error details pushed to your mobile device, Pushover is supported.
 
@@ -53,8 +59,8 @@ For the app to run,  you must edit the `docker-compose.yaml` fle and configure t
             - USE_PUSHOVER=yes/no
             - PO_TOKEN=pushover-app-API-key
             - PO_USER=pushover_user_key
-
-Note: Currently, Pushover is required, but I'll publish an update in the future making it optional. I highly recommend using Pushover, as the app will send you error information if it encouters issues when adding books.
+            - USE_PUSHBULLET=yes/no
+            - PB_TOKEN=pushbullet_access_token
 
 ## Installation via Docker Compose (CLI)
 
