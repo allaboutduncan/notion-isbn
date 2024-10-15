@@ -111,6 +111,8 @@ Copy the following and edit the environment variables
                 - USE_PUSHOVER=yes/no
                 - PO_TOKEN=pushover-app-API-key
                 - PO_USER=pushover_user_key
+                - USE_PUSHBULLET=yes/no
+                - PB_TOKEN=pushbullet_access_token
 
 ## Using the Application
 
