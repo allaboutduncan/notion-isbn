@@ -1,4 +1,12 @@
 ###### Requirements without Version Specifiers ######
-request
+requests
+python-dateutil
+schedule
 pillow
 boto3
+beautifulsoup4
+pushbullet.py
+ndg-httpsclient
+pyopenssl
+pyasn1
+urllib3

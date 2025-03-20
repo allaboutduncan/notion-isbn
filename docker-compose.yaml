@@ -3,12 +3,7 @@ services:
     notion-books:
         image: allaboutduncan/notion-isbn:latest
         container_name: notion-books
-        logging:
-            options:
-                max-size: 1g
         restart: always
-        volumes:
-            - '/var/run/docker.sock:/tmp/docker.sock:ro'
         ports:
             - '3331:3331'
         environment:
@@ -19,8 +14,5 @@ services:
             - NOTION_TOKEN=notion_secret
             - NOTION_DATABASE_ID=notion-database-id
             - GoogleAPIKey=Google-Books-API-Key
-            - USE_PUSHOVER=yes/no
-            - PO_TOKEN=pushover-app-API-key
-            - PO_USER=pushover_user_key
             - USE_PUSHBULLET=yes/no
             - PB_TOKEN=pushbullet_access_token

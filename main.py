@@ -11,26 +11,18 @@ import boto3
 from botocore.exceptions import ClientError
 import os
 from bs4 import BeautifulSoup
-from pushover import Pushover
 import textwrap
 from pushbullet import Pushbullet
+
 
 # Constants and Configuration
 SERVICE_NAME = "Notion Books"
 NOTION_TOKEN = os.getenv("NOTION_TOKEN")
 DATABASE_ID = os.getenv("NOTION_DATABASE_ID")
-USE_PUSHOVER = os.getenv("USE_PUSHOVER", "no")  # Default to 'no' if USE_PUSHOVER is not set
 USE_PUSHBULLET = os.getenv("USE_PUSHBULLET", "no")  # Default to 'no' if USE_PUSHBULLET is not set
 USE_AWS = os.getenv("USE_AWS", "no")  # Default to 'no' if USE_AWS is not set
 
 GOOGLE_API_KEY = os.getenv("GoogleAPIKey")
-
-if USE_PUSHOVER.lower() == "yes":
-    PO_USER = os.getenv("PO_USER")
-    PO_TOKEN = os.getenv("PO_TOKEN")
-    po = Pushover(PO_TOKEN)
-    po.user(PO_USER)
-
 
 if USE_PUSHBULLET.lower() == "yes":
     PB_TOKEN = os.getenv("PB_TOKEN")
@@ -40,11 +32,13 @@ if USE_PUSHBULLET.lower() == "yes":
 if USE_AWS.lower() == "yes":
     BUCKET = os.getenv("AWS_BUCKET")
 
+
 NOTION_HEADERS = {
     "Authorization": f"Bearer {NOTION_TOKEN}",
     "Content-Type": "application/json",
     "Notion-Version": "2022-06-28",
 }
+
 
 logging.basicConfig(
     level=logging.INFO,
@@ -54,12 +48,9 @@ logging.basicConfig(
 
 
 def send_push(subject, message):
-    if USE_PUSHOVER.lower() == "yes":
-        msg = po.msg(message)
-        msg.set("title", subject)
-        po.send(msg)
-    elif USE_PUSHBULLET.lower() == "yes":
-        push = pb.push_note(subject,message)
+    if os.getenv("USE_PUSHBULLET", "").lower() == "yes":
+        push = pb.push_note(subject, message)
+
 
 def remove_html(input_string):
     soup = BeautifulSoup(input_string, "html.parser")
@@ -78,21 +69,90 @@ def upload_file(file_name, object_name, bucket_folder):
     return True
 
 
+# Updated get_book function to use both Google Books API and OpenLibrary API
 def get_book(isbn):
     isbn = str(isbn)
-    base_url = f"https://www.googleapis.com/books/v1/volumes?country=US&q=isbn:{isbn}&key={GOOGLE_API_KEY}"
-
+    # Try Google Books API first
+    base_url_google = f"https://www.googleapis.com/books/v1/volumes?country=US&q=isbn:{isbn}&key={GOOGLE_API_KEY}"
     try:
-        response = requests.get(base_url)
+        response = requests.get(base_url_google)
         response.raise_for_status()
         book_data = response.json()
 
         if book_data["totalItems"] > 0:
-            book_data = book_data["items"][0]["volumeInfo"]
-            logging.info(f"Found {book_data['title']}")
-            return book_data
+            book_info = book_data["items"][0]["volumeInfo"]
+            logging.info(f"Found {book_info.get('title', 'Unknown Title')} using Google Books API")
+            # Standardize the data
+            standardized_data = {
+                'title': book_info.get('title', ''),
+                'subtitle': book_info.get('subtitle', ''),
+                'authors': book_info.get('authors', []),
+                'published_date': book_info.get('publishedDate', ''),
+                'description': book_info.get('description', ''),
+                'publisher': book_info.get('publisher', ''),
+                'page_count': book_info.get('pageCount', 0),
+                'cover_url': None,
+            }
+            # Get cover image URL
+            if 'imageLinks' in book_info and 'thumbnail' in book_info['imageLinks']:
+                standardized_data['cover_url'] = book_info['imageLinks']['thumbnail']
+            else:
+                standardized_data['cover_url'] = None
+            return standardized_data
         else:
-            logging.info("Book not found")
+            logging.info("Book not found in Google Books API, trying OpenLibrary API")
+    except requests.exceptions.RequestException as e:
+        logging.error(f"Error accessing Google Books API: {e}")
+        send_push(f"Error attempting to find book {isbn} in Google Books API", str(e))
+
+    # Try OpenLibrary API
+    base_url_openlibrary = f"https://openlibrary.org/api/books?bibkeys=ISBN:{isbn}&jscmd=details&format=json"
+    try:
+        response = requests.get(base_url_openlibrary)
+        response.raise_for_status()
+        book_data = response.json()
+        if f"ISBN:{isbn}" in book_data:
+            book_info = book_data[f"ISBN:{isbn}"]
+            details = book_info.get("details", {})
+            logging.info(f"Found {details.get('title', 'Unknown Title')} using OpenLibrary API")
+            # Standardize the data
+            standardized_data = {
+                'title': details.get('title', ''),
+                'subtitle': details.get('subtitle', ''),
+                'authors': [],
+                'published_date': details.get('publish_date', ''),
+                'description': '',
+                'publisher': ', '.join(details.get('publishers', [])) if 'publishers' in details else '',
+                'page_count': details.get('number_of_pages', 0),
+                'cover_url': None,
+            }
+            # Authors
+            if 'authors' in details:
+                standardized_data['authors'] = [author.get('name', 'Unknown') for author in details['authors']]
+            else:
+                standardized_data['authors'] = []
+
+            # Description
+            if 'description' in details:
+                if isinstance(details['description'], dict):
+                    standardized_data['description'] = details['description'].get('value', '')
+                elif isinstance(details['description'], str):
+                    standardized_data['description'] = details['description']
+            else:
+                standardized_data['description'] = ''
+
+            # Cover URL
+            if 'covers' in details and details['covers']:
+                cover_id = details['covers'][0]
+                standardized_data['cover_url'] = f"https://covers.openlibrary.org/b/id/{cover_id}-L.jpg"
+            elif 'thumbnail_url' in book_info:
+                standardized_data['cover_url'] = book_info['thumbnail_url'].replace('-S.jpg', '-L.jpg')
+            else:
+                standardized_data['cover_url'] = None
+
+            return standardized_data
+        else:
+            logging.info("Book not found in OpenLibrary API")
             logging.warning(
                 "No data found for the following ISBN %s. Check and see if it is correct",
                 isbn,
@@ -103,8 +163,8 @@ def get_book(isbn):
             )
             return None
     except requests.exceptions.RequestException as e:
-        logging.error(f"Error: {e}")
-        send_push(f"Error attempting to find book {isbn}", str(e))
+        logging.error(f"Error accessing OpenLibrary API: {e}")
+        send_push(f"Error attempting to find book {isbn} in OpenLibrary API", str(e))
         return None
 
 
@@ -138,8 +198,21 @@ def read_pages():
         try:
             page_id = page["id"]
             props = page["properties"]
-            isbn = props["ISBN"]["rich_text"][0]["plain_text"]
-            title = props["Name"]["title"][0]["plain_text"]
+
+            # Safely retrieve ISBN
+            isbn_field = props.get("ISBN", {}).get("rich_text", [])
+            if isbn_field:
+                isbn = isbn_field[0].get("plain_text", "")
+            else:
+                logging.error(f"No ISBN found for page {page_id}. Skipping...")
+                continue  # or handle accordingly
+
+            title_field = props.get("Name", {}).get("title", [])
+            if title_field:
+                title = title_field[0].get("plain_text", "")
+            else:
+                logging.error(f"No title found for page {page_id}. Skipping...")
+                continue
 
             if "New Book" in title and isbn:
                 logging.info("Found a new book")
@@ -147,7 +220,7 @@ def read_pages():
 
                 if book_data:
                     update_notion(book_data, page_id, isbn)
-        except KeyError as e:
+        except (KeyError, IndexError) as e:
             logging.error(f"Error reading page {count}: {e}")
             send_push("Error reading Notion book page", f"Page {count}: {e}")
 
@@ -211,12 +284,12 @@ def get_book_cover_from_isbndb(isbn):
         object_tag = artwork_div.find("object")
         if object_tag and "data" in object_tag.attrs:
             image_url = object_tag['data']
-            print(f"Cover image URL: {image_url}")
+            logging.info(f"Cover image URL: {image_url}")
             return image_url
         else:
-            print("Object tag or 'data' attribute not found.")
+            logging.info("Object tag or 'data' attribute not found.")
     else:
-        print("Div with class 'artwork' not found.")
+        logging.info("Div with class 'artwork' not found.")
 
 
 def get_opencover(isbn):
@@ -245,11 +318,8 @@ def update_notion(book_data, page_id, isbn):
         title += f": {book_data['subtitle']}"
     title = re.sub(r"\([^)]*\)", "", title)[:100]
 
-    cover = (
-        get_book_cover_from_isbndb(isbn)
-        or "https://upload.wikimedia.org/wikipedia/commons/c/ca/1x1.png"
-    )
-    print(cover)
+    cover = book_data.get('cover_url') or get_book_cover_from_isbndb(isbn) or "https://upload.wikimedia.org/wikipedia/commons/c/ca/1x1.png"
+    
     img_name = f"{page_id}.jpg"
 
     try:
@@ -263,8 +333,6 @@ def update_notion(book_data, page_id, isbn):
     if USE_AWS.lower() == "no":
         cover = cover
         banner = cover
-        print("Cover: "+cover)
-        print("Banner: "+banner)
     elif img.size < (50, 50):
         cover = banner = (
             "https://pipedream-api.s3.us-east-2.amazonaws.com/icons/noCover.jpeg"

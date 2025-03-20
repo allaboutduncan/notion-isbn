@@ -16,24 +16,23 @@ ENV PYTHONUNBUFFERED=1
 
 WORKDIR /app
 
-# Download dependencies as a separate step to take advantage of Docker's caching.
-# Leverage a cache mount to /root/.cache/pip to speed up subsequent builds.
-# Leverage a bind mount to requirements.txt to avoid having to copy them into
-# into this layer.
-# RUN python -m pip install -r requirements.txt
-
-# Switch to the non-privileged user to run the application.
+# Install system dependencies
 RUN apt-get update && apt-get install -y git
-RUN pip3 install --upgrade pip --user
-RUN pip3 install --upgrade awscli
-RUN pip3 install git+https://github.com/Wyattjoh/pushover
-RUN pip3 install ndg-httpsclient pyopenssl pyasn1 urllib3 pushbullet.py
-RUN pip3 install requests datetime schedule boto3 pillow beautifulsoup4 --user
-# Copy the source code into the container.
+
+# Upgrade pip
+RUN pip install --upgrade pip
+
+# Copy the requirements file into the container
+COPY requirements.txt .
+
+# Install all dependencies from requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy the source code into the container
 COPY . .
 
 # Expose the port that the application listens on.
 EXPOSE 3331
 
 # Run the application.
-CMD python3 main.py
+CMD ["python3", "main.py"]
