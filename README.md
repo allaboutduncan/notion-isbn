@@ -22,10 +22,7 @@ In the `docker-compose.yaml` file - configure `USE_PUSHBULLET=yes` and enter you
 * [Pushbullet](https://www.pushbullet.com/)
 
 ### Pushover
-If you'd like to receive notifications when new books are processed or error details pushed to your mobile device, Pushover is supported.
-
-In the `docker-compose.yaml` file - configure `USE_PUSHOVER=yes` and enter your Token and User Keys in the lines provided. 
-* [Pushover](https://pushover.net/)
+__Removed support for Pushover in v1 release__ May add this back in a future update, but the original library was out of day and not supported in current versions of Python.
 
 ### AWS S3 Bucket for Banner Style Page Covers
  ![Example Banner Image](/images/banner.jpg)
@@ -56,9 +53,6 @@ For the app to run,  you must edit the `docker-compose.yaml` fle and configure t
             - NOTION_TOKEN=notion_secret
             - NOTION_DATABASE_ID=notion-database-id
             - GoogleAPIKey=Google-Books-API-Key
-            - USE_PUSHOVER=yes/no
-            - PO_TOKEN=pushover-app-API-key
-            - PO_USER=pushover_user_key
             - USE_PUSHBULLET=yes/no
             - PB_TOKEN=pushbullet_access_token
 
@@ -93,12 +87,7 @@ Copy the following and edit the environment variables
         notion-books:
             image: allaboutduncan/notion-isbn:latest
             container_name: notion-books
-            logging:
-                options:
-                    max-size: 1g
             restart: always
-            volumes:
-                - '/var/run/docker.sock:/tmp/docker.sock:ro'
             ports:
                 - '3331:3331'
             environment:
@@ -108,9 +97,6 @@ Copy the following and edit the environment variables
                 - NOTION_TOKEN=notion_secret
                 - NOTION_DATABASE_ID=notion-database-id
                 - GoogleAPIKey=Google-Books-API-Key
-                - USE_PUSHOVER=yes/no
-                - PO_TOKEN=pushover-app-API-key
-                - PO_USER=pushover_user_key
                 - USE_PUSHBULLET=yes/no
                 - PB_TOKEN=pushbullet_access_token
 
