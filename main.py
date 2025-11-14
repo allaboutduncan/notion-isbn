@@ -359,7 +359,8 @@ def update_notion(book_data, page_id, isbn):
     page_count = book_data.get("pageCount", 0)
 
     update_data = {
-        "cover": {"external": {"url": banner}},
+        # Notion only accepts cover URLs over HTTPS
+        "cover": {"external": {"url": banner.replace("http://", "https://")}},
         "properties": {
             "Author": {"select": {"name": authors}},
             "Publisher": {"select": {"name": publisher}},
