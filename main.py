@@ -292,7 +292,7 @@ def get_book_cover_from_isbndb(isbn):
         logging.info("Div with class 'artwork' not found.")
 
 
-def get_opencover(isbn):
+def get_book_cover_from_openlibrary(isbn):
     url = (
         f"https://openlibrary.org/api/books?bibkeys=ISBN:{isbn}&jscmd=data&format=json"
     )
@@ -306,9 +306,9 @@ def get_opencover(isbn):
         if openlibrary_ids:
             return f"https://covers.openlibrary.org/b/olid/{openlibrary_ids[0]}-L.jpg"
         else:
-            return "No openlibrary ID found."
+            logging.info("No openlibrary ID found.")
     else:
-        return f"Failed to retrieve data. Status code: {response.status_code}"
+        logging.info(f"Failed to retrieve data. Status code: {response.status_code}")
 
 
 def update_notion(book_data, page_id, isbn):
@@ -318,7 +318,7 @@ def update_notion(book_data, page_id, isbn):
         title += f": {book_data['subtitle']}"
     title = re.sub(r"\([^)]*\)", "", title)[:100]
 
-    cover = book_data.get('cover_url') or get_book_cover_from_isbndb(isbn) or "https://upload.wikimedia.org/wikipedia/commons/c/ca/1x1.png"
+    cover = book_data.get('cover_url') or get_book_cover_from_openlibrary(isbn) or get_book_cover_from_isbndb(isbn) or "https://upload.wikimedia.org/wikipedia/commons/c/ca/1x1.png"
     
     img_name = f"{page_id}.jpg"
 
@@ -359,7 +359,8 @@ def update_notion(book_data, page_id, isbn):
     page_count = book_data.get("pageCount", 0)
 
     update_data = {
-        "cover": {"external": {"url": banner}},
+        # Notion only accepts cover URLs over HTTPS
+        "cover": {"external": {"url": banner.replace("http://", "https://")}},
         "properties": {
             "Author": {"select": {"name": authors}},
             "Publisher": {"select": {"name": publisher}},
