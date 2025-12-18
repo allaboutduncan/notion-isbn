@@ -11,6 +11,7 @@ services:
             - AWS_ACCESS_KEY_ID=ENTER-YOUR-ACCESS-KEY-HERE
             - AWS_SECRET_ACCESS_KEY=ENTER-YOUR-SECRET-KEY-HERE
             - AWS_BUCKET=bucket-name
+            - AWS_REGION=us-east-2
             - NOTION_TOKEN=notion_secret
             - NOTION_DATABASE_ID=notion-database-id
             - GoogleAPIKey=Google-Books-API-Key

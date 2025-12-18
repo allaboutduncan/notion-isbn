@@ -31,6 +31,7 @@ if USE_PUSHBULLET.lower() == "yes":
 
 if USE_AWS.lower() == "yes":
     BUCKET = os.getenv("AWS_BUCKET")
+    AWS_REGION = os.getenv("AWS_REGION", "us-east-2")  # Default to us-east-2 if not set
 
 
 NOTION_HEADERS = {
@@ -58,7 +59,7 @@ def remove_html(input_string):
 
 
 def upload_file(file_name, object_name, bucket_folder):
-    s3_client = boto3.client("s3")
+    s3_client = boto3.client("s3", region_name=AWS_REGION)
     object_name = f"{bucket_folder}{object_name or os.path.basename(file_name)}"
 
     try:
@@ -272,13 +273,13 @@ def get_book_cover_from_isbndb(isbn):
     headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"}
     book_url = (f"https://isbndb.com/book/{isbn}")
     response = requests.get(book_url, headers=headers)
-    
+
     # Parse the page content
     soup = BeautifulSoup(response.content, 'html.parser')
-    
+
     # Find the div with the class "artwork" and then locate the object tag inside it
     artwork_div = soup.find("div", {"class": "artwork"})
-    
+
     if artwork_div:
         # Find the object tag within the div and get the data attribute
         object_tag = artwork_div.find("object")
@@ -319,7 +320,7 @@ def update_notion(book_data, page_id, isbn):
     title = re.sub(r"\([^)]*\)", "", title)[:100]
 
     cover = book_data.get('cover_url') or get_book_cover_from_openlibrary(isbn) or get_book_cover_from_isbndb(isbn) or "https://upload.wikimedia.org/wikipedia/commons/c/ca/1x1.png"
-    
+
     img_name = f"{page_id}.jpg"
 
     try:
@@ -340,9 +341,9 @@ def update_notion(book_data, page_id, isbn):
     else:
         make_banner(cover, page_id)
         banner = (
-            f"https://{BUCKET}.s3.us-east-2.amazonaws.com/book_banners/{page_id}.jpg"
+            f"https://{BUCKET}.s3.{AWS_REGION}.amazonaws.com/book_banners/{page_id}.jpg"
         )
-        cover = f"https://{BUCKET}.s3.us-east-2.amazonaws.com/book_covers/{page_id}.jpg"
+        cover = f"https://{BUCKET}.s3.{AWS_REGION}.amazonaws.com/book_covers/{page_id}.jpg"
 
     authors = " and ".join(book_data.get("authors", ["Anthology"]))
     published_date = book_data.get("publishedDate", "")
