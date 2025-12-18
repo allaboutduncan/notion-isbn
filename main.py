@@ -171,29 +171,41 @@ def get_book(isbn):
 
 def get_pages(num_pages=None):
     url = f"https://api.notion.com/v1/databases/{DATABASE_ID}/query"
-    # payload = {"page_size": 100 if num_pages is None else num_pages}
-    payload = {
-        "filter": {"property": "Name", "title": {"contains": "New Book"}},
-        "page_size": 100 if num_pages is None else num_pages,
-    }
+    payload = {"page_size": 100 if num_pages is None else num_pages}
     logging.info("Looking for New Books...")
     results = []
 
-    with requests.post(url, json=payload, headers=NOTION_HEADERS) as response:
-        data = response.json()
-        results.extend(data["results"])
+    try:
+        with requests.post(url, json=payload, headers=NOTION_HEADERS) as response:
+            logging.info(f"API Response Status: {response.status_code}")
+            data = response.json()
 
-        while data.get("has_more") and num_pages is None:
-            payload["start_cursor"] = data["next_cursor"]
-            with requests.post(url, json=payload, headers=NOTION_HEADERS) as response:
-                data = response.json()
-                results.extend(data["results"])
+            # Log any errors from Notion API
+            if "error" in data:
+                logging.error(f"Notion API Error: {data['error']}")
+                logging.error(f"Error message: {data.get('message', 'No message')}")
+                return results
+
+            results.extend(data["results"])
+            logging.info(f"First batch: Retrieved {len(data['results'])} pages")
+
+            while data.get("has_more") and num_pages is None:
+                payload["start_cursor"] = data["next_cursor"]
+                with requests.post(url, json=payload, headers=NOTION_HEADERS) as response:
+                    data = response.json()
+                    results.extend(data["results"])
+                    logging.info(f"Next batch: Retrieved {len(data['results'])} more pages")
+    except Exception as e:
+        logging.error(f"Error in get_pages: {e}")
+        import traceback
+        logging.error(traceback.format_exc())
 
     return results
 
 
 def read_pages():
     pages = get_pages()
+    logging.info(f"Retrieved {len(pages)} total pages from database")
 
     for count, page in enumerate(pages, start=1):
         try:
@@ -215,8 +227,8 @@ def read_pages():
                 logging.error(f"No title found for page {page_id}. Skipping...")
                 continue
 
-            if "New Book" in title and isbn:
-                logging.info("Found a new book")
+            if title.startswith("New ") and title.endswith(" Book") and isbn:
+                logging.info(f"Found a new book: '{title}' with ISBN: {isbn}")
                 book_data = get_book(isbn)
 
                 if book_data:
