@@ -31,6 +31,7 @@ if USE_PUSHBULLET.lower() == "yes":
 
 if USE_AWS.lower() == "yes":
     BUCKET = os.getenv("AWS_BUCKET")
+    AWS_REGION = os.getenv("AWS_REGION", "us-east-2")  # Default to us-east-2 if not set
 
 
 NOTION_HEADERS = {
@@ -58,7 +59,7 @@ def remove_html(input_string):
 
 
 def upload_file(file_name, object_name, bucket_folder):
-    s3_client = boto3.client("s3")
+    s3_client = boto3.client("s3", region_name=AWS_REGION)
     object_name = f"{bucket_folder}{object_name or os.path.basename(file_name)}"
 
     try:
@@ -170,29 +171,41 @@ def get_book(isbn):
 
 def get_pages(num_pages=None):
     url = f"https://api.notion.com/v1/databases/{DATABASE_ID}/query"
-    # payload = {"page_size": 100 if num_pages is None else num_pages}
-    payload = {
-        "filter": {"property": "Name", "title": {"contains": "New Book"}},
-        "page_size": 100 if num_pages is None else num_pages,
-    }
+    payload = {"page_size": 100 if num_pages is None else num_pages}
     logging.info("Looking for New Books...")
     results = []
 
-    with requests.post(url, json=payload, headers=NOTION_HEADERS) as response:
-        data = response.json()
-        results.extend(data["results"])
+    try:
+        with requests.post(url, json=payload, headers=NOTION_HEADERS) as response:
+            logging.info(f"API Response Status: {response.status_code}")
+            data = response.json()
 
-        while data.get("has_more") and num_pages is None:
-            payload["start_cursor"] = data["next_cursor"]
-            with requests.post(url, json=payload, headers=NOTION_HEADERS) as response:
-                data = response.json()
-                results.extend(data["results"])
+            # Log any errors from Notion API
+            if "error" in data:
+                logging.error(f"Notion API Error: {data['error']}")
+                logging.error(f"Error message: {data.get('message', 'No message')}")
+                return results
+
+            results.extend(data["results"])
+            logging.info(f"First batch: Retrieved {len(data['results'])} pages")
+
+            while data.get("has_more") and num_pages is None:
+                payload["start_cursor"] = data["next_cursor"]
+                with requests.post(url, json=payload, headers=NOTION_HEADERS) as response:
+                    data = response.json()
+                    results.extend(data["results"])
+                    logging.info(f"Next batch: Retrieved {len(data['results'])} more pages")
+    except Exception as e:
+        logging.error(f"Error in get_pages: {e}")
+        import traceback
+        logging.error(traceback.format_exc())
 
     return results
 
 
 def read_pages():
     pages = get_pages()
+    logging.info(f"Retrieved {len(pages)} total pages from database")
 
     for count, page in enumerate(pages, start=1):
         try:
@@ -214,8 +227,8 @@ def read_pages():
                 logging.error(f"No title found for page {page_id}. Skipping...")
                 continue
 
-            if "New Book" in title and isbn:
-                logging.info("Found a new book")
+            if title.startswith("New ") and title.endswith(" Book") and isbn:
+                logging.info(f"Found a new book: '{title}' with ISBN: {isbn}")
                 book_data = get_book(isbn)
 
                 if book_data:
@@ -272,13 +285,13 @@ def get_book_cover_from_isbndb(isbn):
     headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"}
     book_url = (f"https://isbndb.com/book/{isbn}")
     response = requests.get(book_url, headers=headers)
-    
+
     # Parse the page content
     soup = BeautifulSoup(response.content, 'html.parser')
-    
+
     # Find the div with the class "artwork" and then locate the object tag inside it
     artwork_div = soup.find("div", {"class": "artwork"})
-    
+
     if artwork_div:
         # Find the object tag within the div and get the data attribute
         object_tag = artwork_div.find("object")
@@ -319,7 +332,7 @@ def update_notion(book_data, page_id, isbn):
     title = re.sub(r"\([^)]*\)", "", title)[:100]
 
     cover = book_data.get('cover_url') or get_book_cover_from_openlibrary(isbn) or get_book_cover_from_isbndb(isbn) or "https://upload.wikimedia.org/wikipedia/commons/c/ca/1x1.png"
-    
+
     img_name = f"{page_id}.jpg"
 
     try:
@@ -340,9 +353,9 @@ def update_notion(book_data, page_id, isbn):
     else:
         make_banner(cover, page_id)
         banner = (
-            f"https://{BUCKET}.s3.us-east-2.amazonaws.com/book_banners/{page_id}.jpg"
+            f"https://{BUCKET}.s3.{AWS_REGION}.amazonaws.com/book_banners/{page_id}.jpg"
         )
-        cover = f"https://{BUCKET}.s3.us-east-2.amazonaws.com/book_covers/{page_id}.jpg"
+        cover = f"https://{BUCKET}.s3.{AWS_REGION}.amazonaws.com/book_covers/{page_id}.jpg"
 
     authors = " and ".join(book_data.get("authors", ["Anthology"]))
     published_date = book_data.get("publishedDate", "")
